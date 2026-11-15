@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.JusAchievements" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ja_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="ja_background">#FF07080C</color>
+    <color name="ja_gold">#FFFFC531</color>
+</resources>
