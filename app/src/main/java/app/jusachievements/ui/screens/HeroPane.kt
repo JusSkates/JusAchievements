@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -399,33 +400,44 @@ private fun GameHeader(game: GameDetail, showBack: Boolean, onBack: () -> Unit) 
             ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
             Spacer(Modifier.height(8.dp))
         }
-        Row(verticalAlignment = Alignment.Bottom) {
-            // Box art keeps its own shape (tall for SNES, square for Game Boy...): never cropped.
-            RaImage(
-                game.boxArt ?: game.icon,
-                Modifier
-                    .height(170.dp)
-                    .widthIn(max = 240.dp)
-                    .then(if (game.complete) Modifier.glow(JaColors.MasteredBlue, radius = 18.dp, corner = 10.dp) else Modifier)
-                    .clip(RoundedCornerShape(10.dp)),
-                game.title,
-                contentScale = ContentScale.Fit,
-            )
-            Spacer(Modifier.width(18.dp))
-            Column(Modifier.weight(1f)) {
-                Text(game.consoleName.uppercase(), style = MaterialTheme.typography.labelSmall, color = JaColors.Gold)
-                Text(game.title, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    listOfNotNull(game.developer ?: game.publisher, game.genre, game.released).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = JaColors.TextDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // Phones in portrait are too narrow for cover + text side by side: stack them instead.
+            val narrow = maxWidth < 560.dp
+            val cover: @Composable () -> Unit = {
+                // Box art keeps its own shape (tall for SNES, square for Game Boy...): never cropped.
+                RaImage(
+                    game.boxArt ?: game.icon,
+                    Modifier
+                        .height(if (narrow) 120.dp else 170.dp)
+                        .widthIn(max = if (narrow) maxWidth * 0.32f else 240.dp)
+                        .then(if (game.complete) Modifier.glow(JaColors.MasteredBlue, radius = 18.dp, corner = 10.dp) else Modifier)
+                        .clip(RoundedCornerShape(10.dp)),
+                    game.title,
+                    contentScale = ContentScale.Fit,
                 )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    ProgressRing(game.progress, size = 64.dp, stroke = 6.dp)
-                    Column {
+            }
+            val titles: @Composable (Modifier) -> Unit = { mod ->
+                Column(mod) {
+                    Text(game.consoleName.uppercase(), style = MaterialTheme.typography.labelSmall, color = JaColors.Gold)
+                    Text(
+                        game.title,
+                        style = if (narrow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        listOfNotNull(game.developer ?: game.publisher, game.genre, game.released).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = JaColors.TextDim,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            val stats: @Composable (Modifier) -> Unit = { mod ->
+                Row(mod, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    ProgressRing(game.progress, size = if (narrow) 56.dp else 64.dp, stroke = 6.dp)
+                    Column(Modifier.weight(1f)) {
                         Text("${game.earned} / ${game.total} achievements", style = MaterialTheme.typography.titleSmall)
                         Text(
                             "${game.pointsEarned.grouped()} / ${game.pointsTotal.grouped()} pts · ${game.earnedHardcore} hardcore",
@@ -435,19 +447,46 @@ private fun GameHeader(game: GameDetail, showBack: Boolean, onBack: () -> Unit) 
                         if (game.players > 0) {
                             Text("${game.players.grouped()} players", style = MaterialTheme.typography.bodySmall, color = JaColors.TextDim)
                         }
+                        if (game.award != null || game.complete) {
+                            Spacer(Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                game.award?.let { AwardChip(it) }
+                                if (game.complete) {
+                                    Text(
+                                        "100% COMPLETE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = JaColors.MasteredBlue,
+                                        modifier = Modifier
+                                            .glow(JaColors.MasteredBlue.copy(alpha = 0.5f), radius = 10.dp, corner = 6.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(JaColors.Background)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    )
+                                }
+                            }
+                        }
                     }
-                    game.award?.let { AwardChip(it) }
-                    if (game.complete) {
-                        Text(
-                            "100% COMPLETE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = JaColors.MasteredBlue,
-                            modifier = Modifier
-                                .glow(JaColors.MasteredBlue.copy(alpha = 0.5f), radius = 10.dp, corner = 6.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(JaColors.Background)
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                }
+            }
+
+            if (narrow) {
+                Column {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        cover()
+                        Spacer(Modifier.width(14.dp))
+                        titles(Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    stats(Modifier.fillMaxWidth())
+                }
+            } else {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    cover()
+                    Spacer(Modifier.width(18.dp))
+                    Column(Modifier.weight(1f)) {
+                        titles(Modifier)
+                        Spacer(Modifier.height(10.dp))
+                        stats(Modifier)
                     }
                 }
             }
